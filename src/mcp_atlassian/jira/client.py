@@ -83,6 +83,22 @@ class JiraClient:
                 cloud=self.config.is_cloud,
                 verify_ssl=self.config.ssl_verify,
             )
+        elif self.config.auth_type == "bearer":
+            logger.debug(
+                f"Initializing Jira client with Bearer token auth. "
+                f"URL: {self.config.url}, "
+                f"Token (masked): {mask_sensitive(str(self.config.bearer_token))}"
+            )
+            # Create a session with bearer token authentication
+            session = Session()
+            session.headers["Authorization"] = f"Bearer {self.config.bearer_token}"
+            
+            self.jira = Jira(
+                url=self.config.url,
+                session=session,
+                cloud=self.config.is_cloud,
+                verify_ssl=self.config.ssl_verify,
+            )
         else:  # basic auth
             logger.debug(
                 f"Initializing Jira client with Basic auth. "
