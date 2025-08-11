@@ -24,10 +24,11 @@ class JiraConfig:
     """
 
     url: str  # Base URL for Jira
-    auth_type: Literal["basic", "pat", "oauth"]  # Authentication type
+    auth_type: Literal["basic", "pat", "oauth", "bearer"]  # Authentication type
     username: str | None = None  # Email or username (Cloud)
     api_token: str | None = None  # API token (Cloud)
     personal_token: str | None = None  # Personal access token (Server/DC)
+    bearer_token: str | None = None  # Bearer token
     oauth_config: OAuthConfig | BYOAccessTokenOAuthConfig | None = None
     ssl_verify: bool = True  # Whether to verify SSL certificates
     projects_filter: str | None = None  # List of project keys to filter searches
@@ -85,6 +86,7 @@ class JiraConfig:
         username = os.getenv("JIRA_USERNAME")
         api_token = os.getenv("JIRA_API_TOKEN")
         personal_token = os.getenv("JIRA_PERSONAL_TOKEN")
+        bearer_token = os.getenv("JIRA_BEARER_TOKEN")
 
         # Check for OAuth configuration
         oauth_config = get_oauth_config_from_env()
@@ -93,14 +95,17 @@ class JiraConfig:
         # Use the shared utility function directly
         is_cloud = is_atlassian_cloud_url(url)
 
-        if oauth_config:
+        if bearer_token:
+            # Bearer token authentication takes precedence
+            auth_type = "bearer"
+        elif oauth_config:
             # OAuth is available - could be full config or minimal config for user-provided tokens
             auth_type = "oauth"
         elif is_cloud:
             if username and api_token:
                 auth_type = "basic"
             else:
-                error_msg = "Cloud authentication requires JIRA_USERNAME and JIRA_API_TOKEN, or OAuth configuration (set ATLASSIAN_OAUTH_ENABLE=true for user-provided tokens)"
+                error_msg = "Cloud authentication requires JIRA_USERNAME and JIRA_API_TOKEN, JIRA_BEARER_TOKEN, or OAuth configuration (set ATLASSIAN_OAUTH_ENABLE=true for user-provided tokens)"
                 raise ValueError(error_msg)
         else:  # Server/Data Center
             if personal_token:
@@ -109,7 +114,7 @@ class JiraConfig:
                 # Allow basic auth for Server/DC too
                 auth_type = "basic"
             else:
-                error_msg = "Server/Data Center authentication requires JIRA_PERSONAL_TOKEN or JIRA_USERNAME and JIRA_API_TOKEN"
+                error_msg = "Server/Data Center authentication requires JIRA_PERSONAL_TOKEN, JIRA_BEARER_TOKEN, or JIRA_USERNAME and JIRA_API_TOKEN"
                 raise ValueError(error_msg)
 
         # SSL verification (for Server/DC)
@@ -133,6 +138,7 @@ class JiraConfig:
             username=username,
             api_token=api_token,
             personal_token=personal_token,
+            bearer_token=bearer_token,
             oauth_config=oauth_config,
             ssl_verify=ssl_verify,
             projects_filter=projects_filter,
@@ -186,6 +192,8 @@ class JiraConfig:
             return bool(self.personal_token)
         elif self.auth_type == "basic":
             return bool(self.username and self.api_token)
+        elif self.auth_type == "bearer":
+            return bool(self.bearer_token)
         logger.warning(
             f"Unknown or unsupported auth_type: {self.auth_type} in JiraConfig"
         )
