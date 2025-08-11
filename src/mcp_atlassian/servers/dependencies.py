@@ -48,9 +48,9 @@ def _create_user_config_for_fetcher(
         ValueError: If required credentials are missing or auth_type is unsupported.
         TypeError: If base_config is not a supported type.
     """
-    if auth_type not in ["oauth", "pat"]:
+    if auth_type not in ["oauth", "pat", "bearer"]:
         raise ValueError(
-            f"Unsupported auth_type '{auth_type}' for user-specific config creation. Expected 'oauth' or 'pat'."
+            f"Unsupported auth_type '{auth_type}' for user-specific config creation. Expected 'oauth', 'pat', or 'bearer'."
         )
 
     username_for_config: str | None = credentials.get("user_email_context")
@@ -135,6 +135,28 @@ def _create_user_config_for_fetcher(
                 "oauth_config": None,
                 "username": None,
                 "api_token": None,
+                "bearer_token": None,
+            }
+        )
+    elif auth_type == "bearer":
+        user_bearer = credentials.get("bearer_token")
+        if not user_bearer:
+            raise ValueError("Bearer token missing in credentials for user auth_type 'bearer'")
+
+        # Log warning if cloud_id is provided with Bearer auth (not typically needed)
+        if cloud_id:
+            logger.warning(
+                f"Cloud ID '{cloud_id}' provided with Bearer authentication. "
+                "Bearer authentication typically uses the base URL directly and doesn't require cloud_id override."
+            )
+
+        common_args.update(
+            {
+                "bearer_token": user_bearer,
+                "oauth_config": None,
+                "username": None,
+                "api_token": None,
+                "personal_token": None,
             }
         )
 
@@ -181,8 +203,8 @@ async def get_jira_fetcher(ctx: Context) -> JiraFetcher:
             return request.state.jira_fetcher
         user_auth_type = getattr(request.state, "user_atlassian_auth_type", None)
         logger.debug(f"get_jira_fetcher: User auth type: {user_auth_type}")
-        # If OAuth or PAT token is present, create user-specific fetcher
-        if user_auth_type in ["oauth", "pat"] and hasattr(
+        # If OAuth, PAT, or Bearer token is present, create user-specific fetcher
+        if user_auth_type in ["oauth", "pat", "bearer"] and hasattr(
             request.state, "user_atlassian_token"
         ):
             user_token = getattr(request.state, "user_atlassian_token", None)
@@ -198,6 +220,8 @@ async def get_jira_fetcher(ctx: Context) -> JiraFetcher:
                 credentials["oauth_access_token"] = user_token
             elif user_auth_type == "pat":
                 credentials["personal_access_token"] = user_token
+            elif user_auth_type == "bearer":
+                credentials["bearer_token"] = user_token
             lifespan_ctx_dict = ctx.request_context.lifespan_context  # type: ignore
             app_lifespan_ctx: MainAppContext | None = (
                 lifespan_ctx_dict.get("app_lifespan_context")
@@ -291,7 +315,7 @@ async def get_confluence_fetcher(ctx: Context) -> ConfluenceFetcher:
             return request.state.confluence_fetcher
         user_auth_type = getattr(request.state, "user_atlassian_auth_type", None)
         logger.debug(f"get_confluence_fetcher: User auth type: {user_auth_type}")
-        if user_auth_type in ["oauth", "pat"] and hasattr(
+        if user_auth_type in ["oauth", "pat", "bearer"] and hasattr(
             request.state, "user_atlassian_token"
         ):
             user_token = getattr(request.state, "user_atlassian_token", None)
@@ -305,6 +329,8 @@ async def get_confluence_fetcher(ctx: Context) -> ConfluenceFetcher:
                 credentials["oauth_access_token"] = user_token
             elif user_auth_type == "pat":
                 credentials["personal_access_token"] = user_token
+            elif user_auth_type == "bearer":
+                credentials["bearer_token"] = user_token
             lifespan_ctx_dict = ctx.request_context.lifespan_context  # type: ignore
             app_lifespan_ctx: MainAppContext | None = (
                 lifespan_ctx_dict.get("app_lifespan_context")
