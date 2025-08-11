@@ -53,3 +53,4 @@ ENV PATH="/app/.venv/bin:$PATH"
 # X-Atlassian-Cloud-Id: <your_cloud_id>
 
 ENTRYPOINT ["mcp-atlassian"]
+CMD ["-v"]

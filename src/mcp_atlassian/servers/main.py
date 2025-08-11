@@ -190,13 +190,14 @@ class AtlassianMCP(FastMCP[MainAppContext]):
         path: str | None = None,
         middleware: list[Middleware] | None = None,
         transport: Literal["streamable-http", "sse"] = "streamable-http",
+        **kwargs: Any,
     ) -> "Starlette":
         user_token_mw = Middleware(UserTokenMiddleware, mcp_server_ref=self)
         final_middleware_list = [user_token_mw]
         if middleware:
             final_middleware_list.extend(middleware)
         app = super().http_app(
-            path=path, middleware=final_middleware_list, transport=transport
+            path=path, middleware=final_middleware_list, transport=transport, **kwargs
         )
         return app
 
@@ -232,13 +233,14 @@ class UserTokenMiddleware(BaseHTTPMiddleware):
             )
             return await call_next(request)
 
-        mcp_path = mcp_server_instance.settings.streamable_http_path.rstrip("/")
+        mcp_path = getattr(mcp_server_instance.settings, "streamable_http_path", "/mcp").rstrip("/")
         request_path = request.url.path.rstrip("/")
         logger.debug(
             f"UserTokenMiddleware.dispatch: Comparing request_path='{request_path}' with mcp_path='{mcp_path}'. Request method='{request.method}'"
         )
         if request_path == mcp_path and request.method == "POST":
             auth_header = request.headers.get("Authorization")
+            jira_bearer_header = request.headers.get("X-jira-bearer-token")
             cloud_id_header = request.headers.get("X-Atlassian-Cloud-Id")
 
             token_for_log = mask_sensitive(
@@ -268,7 +270,30 @@ class UserTokenMiddleware(BaseHTTPMiddleware):
                 logger.debug(
                     f"UserTokenMiddleware: MCP-Session-ID header found: {mcp_session_id}"
                 )
-            if auth_header and auth_header.startswith("Bearer "):
+
+            # Extract custom Jira bearer token header (takes precedence)
+            if jira_bearer_header:
+                token = jira_bearer_header.strip()
+                if not token:
+                    return JSONResponse(
+                        {"error": "Unauthorized: Empty X-jira-bearer-token"},
+                        status_code=401,
+                    )
+                logger.debug(
+                    f"UserTokenMiddleware.dispatch: X-jira-bearer-token header "
+                    f"detected for request to {request.url.path} (masked): "
+                    f"...{mask_sensitive(token, 8)}"
+                )
+                request.state.user_atlassian_token = token
+                request.state.user_atlassian_auth_type = "bearer"
+                request.state.user_atlassian_email = None
+                logger.debug(
+                    f"UserTokenMiddleware.dispatch: Set request.state "
+                    f"(pre-validation): auth_type='bearer', "
+                    f"token_present="
+                    f"{bool(getattr(request.state, 'user_atlassian_token', None))}"
+                )
+            elif auth_header and auth_header.startswith("Bearer "):
                 token = auth_header.split(" ", 1)[1].strip()
                 if not token:
                     return JSONResponse(
