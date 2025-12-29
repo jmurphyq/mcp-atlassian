@@ -17,6 +17,7 @@ logger = logging.getLogger(__name__)
 
 confluence_mcp = FastMCP(
     name="Confluence MCP Service",
+    instructions="Provides tools for interacting with Atlassian Confluence.",
 )
 
 
