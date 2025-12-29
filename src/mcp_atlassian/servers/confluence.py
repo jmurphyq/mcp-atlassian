@@ -20,7 +20,10 @@ confluence_mcp = FastMCP(
 )
 
 
-@confluence_mcp.tool(tags={"confluence", "read"})
+@confluence_mcp.tool(
+    tags={"confluence", "read"},
+    annotations={"title": "Search Content", "readOnlyHint": True},
+)
 async def search(
     ctx: Context,
     query: Annotated[
@@ -109,7 +112,10 @@ async def search(
     return json.dumps(search_results, indent=2, ensure_ascii=False)
 
 
-@confluence_mcp.tool(tags={"confluence", "read"})
+@confluence_mcp.tool(
+    tags={"confluence", "read"},
+    annotations={"title": "Get Page", "readOnlyHint": True},
+)
 async def get_page(
     ctx: Context,
     page_id: Annotated[
@@ -225,7 +231,10 @@ async def get_page(
     return json.dumps(result, indent=2, ensure_ascii=False)
 
 
-@confluence_mcp.tool(tags={"confluence", "read"})
+@confluence_mcp.tool(
+    tags={"confluence", "read"},
+    annotations={"title": "Get Page Children", "readOnlyHint": True},
+)
 async def get_page_children(
     ctx: Context,
     parent_id: Annotated[
@@ -313,7 +322,10 @@ async def get_page_children(
     return json.dumps(result, indent=2, ensure_ascii=False)
 
 
-@confluence_mcp.tool(tags={"confluence", "read"})
+@confluence_mcp.tool(
+    tags={"confluence", "read"},
+    annotations={"title": "Get Comments", "readOnlyHint": True},
+)
 async def get_comments(
     ctx: Context,
     page_id: Annotated[
@@ -342,7 +354,10 @@ async def get_comments(
     return json.dumps(formatted_comments, indent=2, ensure_ascii=False)
 
 
-@confluence_mcp.tool(tags={"confluence", "read"})
+@confluence_mcp.tool(
+    tags={"confluence", "read"},
+    annotations={"title": "Get Labels", "readOnlyHint": True},
+)
 async def get_labels(
     ctx: Context,
     page_id: Annotated[
@@ -371,7 +386,10 @@ async def get_labels(
     return json.dumps(formatted_labels, indent=2, ensure_ascii=False)
 
 
-@confluence_mcp.tool(tags={"confluence", "write"})
+@confluence_mcp.tool(
+    tags={"confluence", "write"},
+    annotations={"title": "Add Label", "destructiveHint": True},
+)
 @check_write_access
 async def add_label(
     ctx: Context,
@@ -397,7 +415,10 @@ async def add_label(
     return json.dumps(formatted_labels, indent=2, ensure_ascii=False)
 
 
-@confluence_mcp.tool(tags={"confluence", "write"})
+@confluence_mcp.tool(
+    tags={"confluence", "write"},
+    annotations={"title": "Create Page", "destructiveHint": True},
+)
 @check_write_access
 async def create_page(
     ctx: Context,
@@ -489,7 +510,10 @@ async def create_page(
     )
 
 
-@confluence_mcp.tool(tags={"confluence", "write"})
+@confluence_mcp.tool(
+    tags={"confluence", "write"},
+    annotations={"title": "Update Page", "destructiveHint": True},
+)
 @check_write_access
 async def update_page(
     ctx: Context,
@@ -583,7 +607,10 @@ async def update_page(
     )
 
 
-@confluence_mcp.tool(tags={"confluence", "write"})
+@confluence_mcp.tool(
+    tags={"confluence", "write"},
+    annotations={"title": "Delete Page", "destructiveHint": True},
+)
 @check_write_access
 async def delete_page(
     ctx: Context,
@@ -625,7 +652,10 @@ async def delete_page(
     return json.dumps(response, indent=2, ensure_ascii=False)
 
 
-@confluence_mcp.tool(tags={"confluence", "write"})
+@confluence_mcp.tool(
+    tags={"confluence", "write"},
+    annotations={"title": "Add Comment", "destructiveHint": True},
+)
 @check_write_access
 async def add_comment(
     ctx: Context,
@@ -675,7 +705,10 @@ async def add_comment(
     return json.dumps(response, indent=2, ensure_ascii=False)
 
 
-@confluence_mcp.tool(tags={"confluence", "read"})
+@confluence_mcp.tool(
+    tags={"confluence", "read"},
+    annotations={"title": "Search User", "readOnlyHint": True},
+)
 async def search_user(
     ctx: Context,
     query: Annotated[
