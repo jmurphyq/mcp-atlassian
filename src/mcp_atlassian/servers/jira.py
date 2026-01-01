@@ -997,6 +997,15 @@ async def add_comment(
     ctx: Context,
     issue_key: Annotated[str, Field(description="Jira issue key (e.g., 'PROJ-123')")],
     comment: Annotated[str, Field(description="Comment text in Markdown format")],
+<<<<<<< HEAD
+=======
+    visibility: Annotated[
+        dict[str, str] | None,
+        Field(
+            description="""(Optional) Comment visibility (e.g. {"type":"group","value":"jira-users"})"""
+        ),
+    ] = None,
+>>>>>>> 4c53e3c (fix(jira): add proper optional type hints to comment visibility params (#816))
 ) -> str:
     """Add a comment to a Jira issue.
 
@@ -1017,7 +1026,54 @@ async def add_comment(
     return json.dumps(result, indent=2, ensure_ascii=False)
 
 
+<<<<<<< HEAD
 @jira_mcp.tool(tags={"jira", "write"})
+=======
+@jira_mcp.tool(
+    tags={"jira", "write"},
+    annotations={"title": "Edit Comment", "destructiveHint": True},
+)
+@check_write_access
+async def edit_comment(
+    ctx: Context,
+    issue_key: Annotated[str, Field(description="Jira issue key (e.g., 'PROJ-123')")],
+    comment_id: Annotated[str, Field(description="The ID of the comment to edit")],
+    comment: Annotated[
+        str, Field(description="Updated comment text in Markdown format")
+    ],
+    visibility: Annotated[
+        dict[str, str] | None,
+        Field(
+            description="""(Optional) Comment visibility (e.g. {"type":"group","value":"jira-users"})"""
+        ),
+    ] = None,
+) -> str:
+    """Edit an existing comment on a Jira issue.
+
+    Args:
+        ctx: The FastMCP context.
+        issue_key: Jira issue key.
+        comment_id: The ID of the comment to edit.
+        comment: Updated comment text in Markdown.
+        visibility: (Optional) Comment visibility (e.g. {"type":"group","value":"jira-users"}).
+
+    Returns:
+        JSON string representing the updated comment object.
+
+    Raises:
+        ValueError: If in read-only mode or Jira client unavailable.
+    """
+    jira = await get_jira_fetcher(ctx)
+    # edit_comment returns dict
+    result = jira.edit_comment(issue_key, comment_id, comment, visibility)
+    return json.dumps(result, indent=2, ensure_ascii=False)
+
+
+@jira_mcp.tool(
+    tags={"jira", "write"},
+    annotations={"title": "Add Worklog", "destructiveHint": True},
+)
+>>>>>>> 4c53e3c (fix(jira): add proper optional type hints to comment visibility params (#816))
 @check_write_access
 async def add_worklog(
     ctx: Context,
