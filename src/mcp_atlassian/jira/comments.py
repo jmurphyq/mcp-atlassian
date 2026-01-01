@@ -93,7 +93,7 @@ class CommentsMixin(JiraClient):
         issue_key: str,
         comment_id: str,
         comment: str,
-        visibility: dict[str, str] | None = None,
+        visibility: dict[str, str] = None,
     ) -> dict[str, Any]:
         """
         Edit an existing comment on an issue.
