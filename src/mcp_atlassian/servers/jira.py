@@ -1683,3 +1683,53 @@ async def add_issues_to_sprint(
     except Exception as e:
         logger.error(f"Error adding issues to sprint: {e}", exc_info=True)
         return json.dumps({"success": False, "error": str(e)})
+=======
+@jira_mcp.tool(
+    tags={"jira", "read", "metrics"},
+    annotations={"title": "Get Issue Dates", "readOnlyHint": True},
+)
+async def jira_get_issue_dates(
+    ctx: Context,
+    issue_key: Annotated[str, Field(description="Jira issue key (e.g., 'PROJ-123')")],
+    include_status_changes: Annotated[
+        bool,
+        Field(
+            description="Include status change history with timestamps and durations"
+        ),
+    ] = True,
+    include_status_summary: Annotated[
+        bool,
+        Field(description="Include aggregated time spent in each status"),
+    ] = True,
+) -> str:
+    """
+    Get date information and status transition history for a Jira issue.
+
+    Returns dates (created, updated, due date, resolution date) and optionally
+    status change history with time tracking for workflow analysis.
+
+    Args:
+        ctx: The FastMCP context.
+        issue_key: The Jira issue key.
+        include_status_changes: Whether to include status change history.
+        include_status_summary: Whether to include aggregated time per status.
+
+    Returns:
+        JSON string with issue dates and optional status tracking data.
+    """
+    jira = await get_jira_fetcher(ctx)
+    try:
+        result = jira.get_issue_dates(
+            issue_key=issue_key,
+            include_created=True,
+            include_updated=True,
+            include_due_date=True,
+            include_resolution_date=True,
+            include_status_changes=include_status_changes,
+            include_status_summary=include_status_summary,
+        )
+        return json.dumps(result.to_simplified_dict(), indent=2, ensure_ascii=False)
+    except Exception as e:
+        logger.error(f"Error getting issue dates for {issue_key}: {str(e)}")
+        error_result = {"success": False, "error": str(e), "issue_key": issue_key}
+        return json.dumps(error_result, indent=2, ensure_ascii=False)
