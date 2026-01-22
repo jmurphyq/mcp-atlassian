@@ -6,6 +6,7 @@ from importlib.metadata import PackageNotFoundError, version
 
 import click
 from dotenv import load_dotenv
+from fastmcp import settings
 
 from mcp_atlassian.utils.env import is_env_truthy
 from mcp_atlassian.utils.lifecycle import (
@@ -325,9 +326,9 @@ def main(
         log_display_path = final_path
         if log_display_path is None:
             if final_transport == "sse":
-                log_display_path = main_mcp.settings.sse_path or "/sse"
+                log_display_path = getattr(settings, "sse_path", None) or "/sse"
             else:
-                log_display_path = main_mcp.settings.streamable_http_path or "/mcp"
+                log_display_path = getattr(settings, "streamable_http_path", None) or "/mcp"
 
         logger.info(
             f"Starting server with {final_transport.upper()} transport on http://{final_host}:{final_port}{log_display_path}"

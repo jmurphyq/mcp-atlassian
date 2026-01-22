@@ -65,9 +65,18 @@ def get_available_services() -> dict[str, bool | None]:
             "Using Confluence minimal OAuth configuration - expecting user-provided tokens via headers"
         )
 
+    # Check if Jira is force-enabled
+    jira_enabled = os.getenv("JIRA_ENABLED", "").lower() in ("true", "1", "yes")
     jira_url = os.getenv("JIRA_URL")
     jira_is_setup = False
-    if jira_url:
+
+    if jira_enabled:
+        logger.info(
+            "JIRA_ENABLED=true detected. Jira integration will be enabled "
+            "without credential validation."
+        )
+        jira_is_setup = True
+    elif jira_url:
         is_cloud = is_atlassian_cloud_url(jira_url)
 
         # OAuth check (highest precedence, applies to Cloud)

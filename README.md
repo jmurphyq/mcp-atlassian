@@ -40,7 +40,32 @@ https://github.com/user-attachments/assets/7fe9c488-ad0c-4876-9b54-120b666bb785
 
 ### 🔐 1. Authentication Setup
 
-MCP Atlassian supports three authentication methods:
+MCP Atlassian supports multiple authentication methods with the following priority order:
+
+1. **X-jira-bearer-token header** (HTTP transport only) - Takes precedence over all other methods
+2. **Authorization: Bearer** (OAuth 2.0)
+3. **Authorization: Token** (Personal Access Token)
+4. **Username + API Token** (Basic Authentication)
+
+#### Force-Enable Jira Integration
+
+You can force Jira integration to be enabled even without credentials in the environment by setting `JIRA_ENABLED=true`. This enables "header-only" authentication mode where you must provide the `X-jira-bearer-token` header with each request.
+
+```bash
+# Enable Jira without environment credentials
+export JIRA_ENABLED=true
+export JIRA_URL=https://your-instance.atlassian.net  # Optional, can be omitted
+
+# Start server - Jira tools will be available
+# Each request must include X-jira-bearer-token header
+```
+
+**Use case**: This is useful for multi-tenant scenarios or when you want to avoid storing credentials in environment variables. Each request can use a different bearer token, allowing per-user or per-tenant authentication.
+
+**Behavior**:
+- If `JIRA_ENABLED=true` AND credentials in environment: Uses environment credentials (normal mode)
+- If `JIRA_ENABLED=true` AND no credentials: Enables "header-only" mode expecting `X-jira-bearer-token`
+- If `JIRA_ENABLED` not set: Jira is only enabled when credentials are configured
 
 #### A. API Token Authentication (Cloud) - **Recommended**
 
@@ -442,6 +467,21 @@ MCP Atlassian supports multi-cloud OAuth scenarios where each user connects to t
    - `Authorization: Bearer <user_oauth_token>`
    - `X-Atlassian-Cloud-Id: <user_cloud_id>`
 
+**Alternative: Force-Enable with Bearer Token Header**
+
+For Jira-only scenarios, you can use `JIRA_ENABLED=true` instead:
+
+```bash
+docker run -e JIRA_ENABLED=true -p 9000:9000 \
+  ghcr.io/sooperset/mcp-atlassian:latest \
+  --transport streamable-http --port 9000
+```
+
+Users provide authentication via the `X-jira-bearer-token` header:
+- `X-jira-bearer-token: <user_bearer_token>`
+
+This approach is simpler when you only need Jira integration and don't require OAuth-specific features.
+
 **Example Integration (Python):**
 ```python
 import asyncio
@@ -668,6 +708,7 @@ Here's a complete example of setting up multi-user authentication with streamabl
 
 - **Cloud (OAuth 2.0):** Use this if your organization is on Atlassian Cloud and you have an OAuth access token for each user.
 - **Server/Data Center (PAT):** Use this if you are on Atlassian Server or Data Center and each user has a Personal Access Token (PAT).
+- **Jira Bearer Token:** Use the `X-jira-bearer-token` header for Jira-specific bearer token authentication (takes precedence over `Authorization` header).
 
 **Cloud (OAuth 2.0) Example:**
 ```json
@@ -697,6 +738,20 @@ Here's a complete example of setting up multi-user authentication with streamabl
 }
 ```
 
+**Jira Bearer Token Example:**
+```json
+{
+  "mcpServers": {
+    "mcp-atlassian-service": {
+      "url": "http://localhost:9000/mcp",
+      "headers": {
+        "X-jira-bearer-token": "<JIRA_BEARER_TOKEN>"
+      }
+    }
+  }
+}
+```
+
 4. Required environment variables in `.env`:
    ```bash
    JIRA_URL=https://your-company.atlassian.net
@@ -712,6 +767,7 @@ Here's a complete example of setting up multi-user authentication with streamabl
 > - The server should have its own fallback authentication configured (e.g., via environment variables for API token, PAT, or its own OAuth setup using --oauth-setup). This is used if a request doesn't include user-specific authentication.
 > - **OAuth**: Each user needs their own OAuth access token from your Atlassian OAuth app.
 > - **PAT**: Each user provides their own Personal Access Token.
+> - **Jira Bearer Token**: Use the `X-jira-bearer-token` header for Jira-specific bearer token authentication. This header takes precedence over the `Authorization` header if both are present.
 > - **Multi-Cloud**: For OAuth users, optionally include `X-Atlassian-Cloud-Id` header to specify which Atlassian cloud instance to use
 > - The server will use the user's token for API calls when provided, falling back to server auth if not
 > - User tokens should have appropriate scopes for their needed operations

@@ -24,7 +24,7 @@ class JiraConfig:
     """
 
     url: str  # Base URL for Jira
-    auth_type: Literal["basic", "pat", "oauth", "bearer"]  # Authentication type
+    auth_type: Literal["basic", "pat", "oauth", "bearer", "none"]  # Authentication type
     username: str | None = None  # Email or username (Cloud)
     api_token: str | None = None  # API token (Cloud)
     personal_token: str | None = None  # Personal access token (Server/DC)
@@ -77,8 +77,12 @@ class JiraConfig:
         Raises:
             ValueError: If required environment variables are missing or invalid
         """
+        # Check if Jira is force-enabled
+        jira_enabled = os.getenv("JIRA_ENABLED", "").lower() in ("true", "1", "yes")
+
         url = os.getenv("JIRA_URL")
-        if not url and not os.getenv("ATLASSIAN_OAUTH_ENABLE"):
+        oauth_enable = os.getenv("ATLASSIAN_OAUTH_ENABLE")
+        if not url and not oauth_enable and not jira_enabled:
             error_msg = "Missing required JIRA_URL environment variable"
             raise ValueError(error_msg)
 
@@ -92,30 +96,61 @@ class JiraConfig:
         oauth_config = get_oauth_config_from_env()
         auth_type = None
 
-        # Use the shared utility function directly
-        is_cloud = is_atlassian_cloud_url(url)
+        # If force-enabled without credentials, use minimal config
+        if jira_enabled and not url:
+            url = "https://placeholder.atlassian.net"
+            auth_type = "none"
+            logger = logging.getLogger("mcp-atlassian.jira.config")
+            logger.info(
+                "JIRA_ENABLED=true without JIRA_URL. Using placeholder URL "
+                "and expecting authentication via request headers."
+            )
+        elif jira_enabled and not any(
+            [username, api_token, personal_token, bearer_token, oauth_config]
+        ):
+            # Force-enabled with URL but no credentials
+            auth_type = "none"
+            logger = logging.getLogger("mcp-atlassian.jira.config")
+            logger.info(
+                "JIRA_ENABLED=true without credentials. "
+                "Expecting authentication via request headers."
+            )
 
-        if bearer_token:
+        # Use the shared utility function directly
+        is_cloud = is_atlassian_cloud_url(url) if url else False
+
+        if auth_type != "none" and bearer_token:
             # Bearer token authentication takes precedence
             auth_type = "bearer"
         elif oauth_config:
-            # OAuth is available - could be full config or minimal config for user-provided tokens
+            # OAuth is available - could be full config or minimal config
+            # for user-provided tokens
             auth_type = "oauth"
-        elif is_cloud:
-            if username and api_token:
-                auth_type = "basic"
-            else:
-                error_msg = "Cloud authentication requires JIRA_USERNAME and JIRA_API_TOKEN, JIRA_BEARER_TOKEN, or OAuth configuration (set ATLASSIAN_OAUTH_ENABLE=true for user-provided tokens)"
-                raise ValueError(error_msg)
-        else:  # Server/Data Center
-            if personal_token:
-                auth_type = "pat"
-            elif username and api_token:
-                # Allow basic auth for Server/DC too
-                auth_type = "basic"
-            else:
-                error_msg = "Server/Data Center authentication requires JIRA_PERSONAL_TOKEN, JIRA_BEARER_TOKEN, or JIRA_USERNAME and JIRA_API_TOKEN"
-                raise ValueError(error_msg)
+        elif auth_type != "none":
+            if is_cloud:
+                if username and api_token:
+                    auth_type = "basic"
+                else:
+                    error_msg = (
+                        "Cloud authentication requires JIRA_USERNAME and "
+                        "JIRA_API_TOKEN, JIRA_BEARER_TOKEN, or OAuth "
+                        "configuration (set ATLASSIAN_OAUTH_ENABLE=true "
+                        "for user-provided tokens)"
+                    )
+                    raise ValueError(error_msg)
+            else:  # Server/Data Center
+                if personal_token:
+                    auth_type = "pat"
+                elif username and api_token:
+                    # Allow basic auth for Server/DC too
+                    auth_type = "basic"
+                else:
+                    error_msg = (
+                        "Server/Data Center authentication requires "
+                        "JIRA_PERSONAL_TOKEN, JIRA_BEARER_TOKEN, or "
+                        "JIRA_USERNAME and JIRA_API_TOKEN"
+                    )
+                    raise ValueError(error_msg)
 
         # SSL verification (for Server/DC)
         ssl_verify = is_env_ssl_verify("JIRA_SSL_VERIFY")
@@ -131,6 +166,10 @@ class JiraConfig:
 
         # Custom headers - service-specific only
         custom_headers = get_custom_headers("JIRA_CUSTOM_HEADERS")
+
+        # Ensure url is never None (should have been set by force-enabled logic)
+        if url is None:
+            url = "https://placeholder.atlassian.net"
 
         return cls(
             url=url,
@@ -150,13 +189,19 @@ class JiraConfig:
         )
 
     def is_auth_configured(self) -> bool:
-        """Check if the current authentication configuration is complete and valid for making API calls.
+        """Check if authentication configuration is complete and valid.
 
         Returns:
             bool: True if authentication is fully configured, False otherwise.
         """
         logger = logging.getLogger("mcp-atlassian.jira.config")
-        if self.auth_type == "oauth":
+        if self.auth_type == "none":
+            # Force-enabled mode, auth will come from request headers
+            logger.debug(
+                "Auth type is 'none' - expecting authentication via request headers"
+            )
+            return True
+        elif self.auth_type == "oauth":
             # Handle different OAuth configuration types
             if self.oauth_config:
                 # Full OAuth configuration (traditional mode)
@@ -170,14 +215,16 @@ class JiraConfig:
                     ):
                         return True
                     # Minimal OAuth configuration (user-provided tokens mode)
-                    # This is valid if we have oauth_config but missing client credentials
-                    # In this case, we expect authentication to come from user-provided headers
+                    # This is valid if we have oauth_config but missing
+                    # client credentials. In this case, we expect
+                    # authentication to come from user-provided headers
                     elif (
                         not self.oauth_config.client_id
                         and not self.oauth_config.client_secret
                     ):
                         logger.debug(
-                            "Minimal OAuth config detected - expecting user-provided tokens via headers"
+                            "Minimal OAuth config detected - expecting "
+                            "user-provided tokens via headers"
                         )
                         return True
                 # Bring Your Own Access Token mode
