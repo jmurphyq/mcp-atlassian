@@ -997,15 +997,12 @@ async def add_comment(
     ctx: Context,
     issue_key: Annotated[str, Field(description="Jira issue key (e.g., 'PROJ-123')")],
     comment: Annotated[str, Field(description="Comment text in Markdown format")],
-<<<<<<< HEAD
-=======
     visibility: Annotated[
         dict[str, str] | None,
         Field(
             description="""(Optional) Comment visibility (e.g. {"type":"group","value":"jira-users"})"""
         ),
     ] = None,
->>>>>>> 4c53e3c (fix(jira): add proper optional type hints to comment visibility params (#816))
 ) -> str:
     """Add a comment to a Jira issue.
 
@@ -1026,9 +1023,6 @@ async def add_comment(
     return json.dumps(result, indent=2, ensure_ascii=False)
 
 
-<<<<<<< HEAD
-@jira_mcp.tool(tags={"jira", "write"})
-=======
 @jira_mcp.tool(
     tags={"jira", "write"},
     annotations={"title": "Edit Comment", "destructiveHint": True},
@@ -1073,7 +1067,6 @@ async def edit_comment(
     tags={"jira", "write"},
     annotations={"title": "Add Worklog", "destructiveHint": True},
 )
->>>>>>> 4c53e3c (fix(jira): add proper optional type hints to comment visibility params (#816))
 @check_write_access
 async def add_worklog(
     ctx: Context,
@@ -1752,7 +1745,6 @@ async def add_issues_to_sprint(
     except Exception as e:
         logger.error(f"Error adding issues to sprint: {e}", exc_info=True)
         return json.dumps({"success": False, "error": str(e)})
-=======
 @jira_mcp.tool(
     tags={"jira", "read", "metrics"},
     annotations={"title": "Get Issue Dates", "readOnlyHint": True},
